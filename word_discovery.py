@@ -126,27 +126,28 @@ class SimpleTrie:
     """通过Trie树结构，来搜索ngrams组成的连续片段
     """
     def __init__(self):
-        self.dic = {}
-        self.end = True
+        self.root = {}
+        self.end = -1
     def add_word(self, word):
-        _ = self.dic
+        curNode = self.root
         for c in word:
-            if c not in _:
-                _[c] = {}
-            _ = _[c]
-        _[self.end] = word
-    def tokenize(self, sent): # 通过最长联接的方式来对句子进行分词
+            if c not in curNode:
+                curNode[c] = {}
+            curNode = curNode[c]
+        curNode[self.end] = True
+
+    def tokenize(self, sent):  # 通过最长联接的方式来对句子进行分词
         result = []
         start, end = 0, 1
         for i, c1 in enumerate(sent):
-            _ = self.dic
+            curNode = self.root
             if i == end:
                 result.append(sent[start: end])
                 start, end = i, i+1
             for j, c2 in enumerate(sent[i:]):
-                if c2 in _:
-                    _ = _[c2]
-                    if self.end in _:
+                if c2 in curNode:
+                    curNode = curNode[c2]
+                    if self.end in curNode:
                         if i + j + 1 > end:
                             end = i + j + 1
                 else:
@@ -191,24 +192,24 @@ def text_generator():
 
 min_count = 32
 order = 4
-corpus_file = 'thucnews.corpus' # 语料保存的文件名
-vocab_file = 'thucnews.chars' # 字符集保存的文件名
-ngram_file = 'thucnews.ngrams' # ngram集保存的文件名
-output_file = 'thucnews.vocab' # 最后导出的词表文件名
+corpus_file = 'thucnews.corpus'  # 语料保存的文件名
+vocab_file = 'thucnews.chars'  # 字符集保存的文件名
+ngram_file = 'thucnews.ngrams'  # ngram集保存的文件名
+output_file = 'thucnews.vocab'  # 最后导出的词表文件名
 memory = 0.5 # memory是占用内存比例，理论上不能超过可用内存比例
 
-write_corpus(text_generator(), corpus_file) # 将语料转存为文本
-count_ngrams(corpus_file, order, vocab_file, ngram_file, memory) # 用Kenlm统计ngram
-ngrams = KenlmNgrams(vocab_file, ngram_file, order, min_count) # 加载ngram
+write_corpus(text_generator(), corpus_file)  # 将语料转存为文本
+count_ngrams(corpus_file, order, vocab_file, ngram_file, memory)  # 用Kenlm统计ngram
+ngrams = KenlmNgrams(vocab_file, ngram_file, order, min_count)   # 加载ngram
 ngrams = filter_ngrams(ngrams.ngrams, ngrams.total, [0, 2, 4, 6]) # 过滤ngram
-ngtrie = SimpleTrie() # 构建ngram的Trie树
+ngtrie = SimpleTrie()  # 构建ngram的Trie树
 
 for w in Progress(ngrams, 100000, desc=u'build ngram trie'):
-    _ = ngtrie.add_word(w)
+    ngtrie.add_word(w)
 
-candidates = {} # 得到候选词
+candidates = {}  # 得到候选词
 for t in Progress(text_generator(), 1000, desc='discovering words'):
-    for w in ngtrie.tokenize(t): # 预分词
+    for w in ngtrie.tokenize(t):  # 预分词
         candidates[w] = candidates.get(w, 0) + 1
 
 # 频数过滤
